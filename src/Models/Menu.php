@@ -6,7 +6,6 @@ namespace Pin\Access\Models;
 
 use Pin\Access\Contracts\AccessibleMenu;
 use Pin\Models\Concerns\CacheAll;
-use Pin\Modules\Log\Models\Concerns\HasOperationLog;
 use Pin\Tree\TreeModel;
 
 /**
@@ -18,7 +17,7 @@ use Pin\Tree\TreeModel;
  */
 class Menu extends TreeModel implements AccessibleMenu
 {
-    use CacheAll, HasOperationLog;
+    use CacheAll;
 
     /**
      * 禁用
@@ -54,13 +53,5 @@ class Menu extends TreeModel implements AccessibleMenu
     public function isMenu(): bool
     {
         return $this->type == static::MENU;
-    }
-
-    /**
-     * 用于日志记录的名称字段
-     */
-    public function subjectNameColumn(): string
-    {
-        return 'name';
     }
 }
