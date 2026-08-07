@@ -1,0 +1,50 @@
+{
+  "name": "ipiner/access",
+  "description": "Pin 基于权限码的访问控制",
+  "keywords": [
+    "laravel",
+    "pin",
+    "access-control",
+    "permission",
+    "authorization"
+  ],
+  "license": "MIT",
+  "require": {
+    "ipiner/modules-log": "dev-main",
+    "ipiner/pin": "^1.0"
+  },
+  "require-dev": {
+    "dedoc/scramble": "^0.13.22",
+    "laravel/pint": "^1.15",
+    "orchestra/testbench": "^11.1",
+    "pestphp/pest": "^4.7",
+    "phpstan/phpstan": "^2.2",
+    "phpunit/phpunit": "^12"
+  },
+  "autoload": {
+    "psr-4": {
+      "Pin\\Access\\": "src"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Pin\\Tests\\": "tests"
+    }
+  },
+  "config": {
+    "preferred-install": "dist",
+    "sort-packages": true,
+    "allow-plugins": {
+      "pestphp/pest-plugin": true
+    }
+  },
+  "extra": {
+    "laravel": {
+      "providers": [
+        "Pin\\Access\\AccessServiceProvider"
+      ]
+    }
+  },
+  "minimum-stability": "stable",
+  "prefer-stable": true
+}
