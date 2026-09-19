@@ -16,4 +16,13 @@ enum UserRoute: string implements Routable
 
     #[Access('users')]
     case Export = 'GET:/api/users/export';
+
+    #[Access(false)]
+    case PublicList = 'GET:/api/users/public';
+
+    #[Access(null)]
+    case Detail = 'GET:/api/users/{id}';
+
+    #[Access(self::List)]
+    case Summary = 'GET:/api/users/summary';
 }

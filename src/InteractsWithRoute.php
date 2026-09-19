@@ -9,7 +9,7 @@ use Pin\Access\Attributes\Access;
 use Pin\Route\Routable;
 
 /**
- * 组合路由枚举所需的属性读取、定义解析、注册和测试能力。
+ * 在路由枚举注册时追加权限中间件。
  */
 trait InteractsWithRoute
 {
@@ -22,7 +22,7 @@ trait InteractsWithRoute
      *
      * @param  callable|array|string  $handler  路由处理器
      * @param  string|string[]|null  $middlewares  附加中间件
-     * @param  string|Routable|null|false  $accessCode  访问权限码
+     * @param  string|Routable|null|false  $accessCode  null 使用路由名称，false 跳过校验；Access 属性优先
      */
     public function register(
         callable|array|string $handler,
@@ -31,8 +31,9 @@ trait InteractsWithRoute
     ): Route {
         $route = $this->__register($handler, $middlewares);
 
-        if ($middlewares = $this->resolveAccessMiddleware($route, $accessCode)) {
-            $route->middleware($middlewares);
+        $accessMiddleware = $this->resolveAccessMiddleware($route, $accessCode);
+        if ($accessMiddleware !== null) {
+            $route->middleware($accessMiddleware);
         }
 
         return $route;
@@ -47,16 +48,16 @@ trait InteractsWithRoute
     ): ?string {
         if (
             ! config('pin.access.enabled')
-            || in_array('auth', $route->excludedMiddleware())
+            || in_array('auth', $route->excludedMiddleware(), true)
         ) {
             return null;
         }
 
         $middleware = config('pin.access.middleware');
 
-        $attr = $this->attribute(Access::class);
-        if ($attr) {
-            $accessCode = $attr->value;
+        $attribute = $this->attribute(Access::class);
+        if ($attribute !== null) {
+            $accessCode = $attribute->value;
         }
 
         return match (true) {

@@ -32,8 +32,8 @@ class Access
      */
     public function __construct(protected Authenticatable $user)
     {
-        $class = config('pin.access.access_provider');
-        $this->provider = new $class($user);
+        $providerClass = config('pin.access.access_provider');
+        $this->provider = app()->make($providerClass, ['user' => $user]);
     }
 
     /**

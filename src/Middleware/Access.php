@@ -7,6 +7,7 @@ namespace Pin\Access\Middleware;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
+use Pin\Access\Access as AccessManager;
 use Pin\Access\UnauthorizedException;
 
 /**
@@ -15,14 +16,21 @@ use Pin\Access\UnauthorizedException;
 class Access
 {
     /**
-     * @param string|null code 权限码，默认使用路由名称
+     * @param  string|null  $code  权限码，默认使用路由名称
      *
      * @throws UnauthorizedException
      */
     public function handle(Request $request, Closure $next, ?string $code = null): mixed
     {
         if ($this->shouldRun($request)) {
-            $this->authorize($code ?? $request->route()->getName());
+            $code ??= $request->route()?->getName();
+
+            // 未命名路由必须显式提供权限码，避免产生类型错误或意外放行。
+            if ($code === null || $code === '') {
+                throw new UnauthorizedException($code ?? '');
+            }
+
+            $this->authorize($code);
         }
 
         return $next($request);
@@ -35,7 +43,7 @@ class Access
      */
     protected function authorize(string $code): void
     {
-        if (! Gate::allows(\Pin\Access\Access::ABILITY, $code)) {
+        if (! Gate::allows(AccessManager::ABILITY, $code)) {
             throw new UnauthorizedException($code);
         }
     }
@@ -45,7 +53,7 @@ class Access
      */
     protected function shouldRun(Request $request): bool
     {
-        return config('pin.access.enabled')
-            && ! $request->isRequest(config('pin.access.except'));
+        return config('pin.access.enabled', false)
+            && ! $request->isRequest(config('pin.access.except', []));
     }
 }

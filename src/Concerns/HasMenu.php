@@ -17,45 +17,50 @@ use Pin\Support\Facades\Tree;
 trait HasMenu
 {
     /**
-     * 查询菜单
+     * 通过模型缓存查询缺失的祖先菜单。
      */
     protected function findMenu(int $id): Menu
     {
-        $model = $this->modelModelClass();
+        $model = $this->menuModelClass();
 
         return $model::findOrFail($id);
     }
 
     /**
      * 根据菜单 path 补齐前端展示所需的祖先菜单。
+     *
+     * @param  Collection<array-key, TModel>  $menus
+     * @return Collection<int, TModel>
      */
     protected function loadAncestorMenus(Collection $menus): Collection
     {
-        $result = [];
+        $menusById = $menus->keyBy('id')->all();
 
-        // 确保父级存在
-        foreach ($menus as $item) {
-            foreach ($item->paths() as $id) {
-                if (! isset($menus[$id], $result[$id])) {
-                    $result[$id] = $this->findMenu($id);
+        // 先索引已有节点，避免重复读取共享祖先或覆盖调用方传入的模型。
+        foreach ($menus as $menu) {
+            foreach ($menu->paths() as $id) {
+                if (! isset($menusById[$id])) {
+                    $menusById[$id] = $this->findMenu($id);
                 }
             }
-            $result[$item->id] = $item;
         }
 
-        return collect(array_values(array_filter($result)));
+        return collect(array_values($menusById));
     }
 
     /**
      * @return class-string<TModel>
      */
-    protected function modelModelClass(): string
+    protected function menuModelClass(): string
     {
         return config('pin.access.menu_model');
     }
 
     /**
      * 归一化权限菜单集合，确保父级链完整并过滤禁用菜单。
+     *
+     * @param  Collection<array-key, TModel>  $menus
+     * @return Collection<int, TModel>
      */
     protected function normalizeMenus(Collection $menus): Collection
     {

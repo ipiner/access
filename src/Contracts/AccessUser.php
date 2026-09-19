@@ -21,7 +21,7 @@ interface AccessUser extends Authenticatable
     /**
      * 获取用户可访问的菜单集合
      *
-     * @return Collection<Menu>
+     * @return Collection<array-key, Menu>
      */
     public function accessibleMenus(): Collection;
 }

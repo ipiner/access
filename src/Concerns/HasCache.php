@@ -19,6 +19,10 @@ trait HasCache
      */
     public static function flushAccess(Authenticatable $user): void
     {
+        if ($user->getAuthIdentifier() === null) {
+            return;
+        }
+
         $key = static::cacheKey($user);
 
         RuntimeCache::delete($key);
@@ -26,11 +30,11 @@ trait HasCache
     }
 
     /**
-     * 生成用户权限缓存键。
+     * 使用用户认证标识生成权限缓存键。
      */
     protected static function cacheKey(Authenticatable $user): string
     {
-        return 'auth-access:'.$user->id;
+        return 'auth-access:'.$user->getAuthIdentifier();
     }
 
     /**
@@ -38,8 +42,17 @@ trait HasCache
      */
     protected function remember(Closure $callback): array
     {
+        $ttl = (int) config('pin.access.cache_ttl', 86400);
+
+        // 未分配认证标识的用户不能共享缓存。
+        if ($ttl <= 0 || $this->user->getAuthIdentifier() === null) {
+            return $callback();
+        }
+
         $key = static::cacheKey($this->user);
 
-        return RuntimeCache::remember($key, fn () => Cache::remember($key, 86400, $callback));
+        return RuntimeCache::remember($key, function () use ($key, $ttl, $callback) {
+            return Cache::remember($key, $ttl, $callback);
+        }, $ttl);
     }
 }

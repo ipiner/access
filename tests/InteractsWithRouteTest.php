@@ -37,5 +37,24 @@ describe('resolves access middleware', function () {
         ['users', Access::class.':'.'users'],
         [UserRoute::List, Access::class.':'.'users'],
         [UserRoute::Export, Access::class.':'.'users'],
+        [UserRoute::PublicList, null],
+        [UserRoute::Detail, Access::class],
+        [UserRoute::Summary, Access::class.':users'],
     ]);
+});
+
+it('registers access middleware alongside existing middleware', function () {
+    config(['pin.access.enabled' => true]);
+
+    $route = UserRoute::List->register([], ['auth'], 'custom');
+
+    expect($route->middleware())->toBe(['auth', Access::class.':custom']);
+});
+
+it('lets access attributes override registration arguments including false and null', function () {
+    config(['pin.access.enabled' => true]);
+
+    expect(UserRoute::Export->register([], accessCode: false)->middleware())->toContain(Access::class.':users')
+        ->and(UserRoute::PublicList->register([], accessCode: 'custom')->middleware())->toBe([])
+        ->and(UserRoute::Detail->register([], accessCode: 'custom')->middleware())->toContain(Access::class);
 });

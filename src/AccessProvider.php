@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Pin\Access;
 
 use Pin\Access\Contracts\AccessUser;
-use Pin\Access\Models\Menu;
 
 /**
  * 用户权限数据提供器。
@@ -25,17 +24,17 @@ class AccessProvider implements Contracts\AccessProvider
      *
      * 超级用户/管理员返回空数组，表示拥有全部权限
      *
-     * @return string[]
+     * @return list<string>
      */
     public function codes(): array
     {
-        return $this->resolveAccessData()['codes'];
+        return $this->user->hasAllAccess() ? [] : $this->resolveAccessData()['codes'];
     }
 
     /**
-     * 获取用户可访问菜单列表
+     * 获取按菜单 ID 索引的序列化菜单，不包含按钮。
      *
-     * @return Menu[]
+     * @return array<int, array<string, mixed>>
      */
     public function menus(): array
     {

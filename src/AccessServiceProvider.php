@@ -15,11 +15,19 @@ use Pin\Support\ServiceProvider;
 class AccessServiceProvider extends ServiceProvider
 {
     /**
-     * Bootstrap the application services.
+     * 注册配置和当前用户的权限服务。
+     */
+    public function register(): void
+    {
+        $this->mergeConfigFrom(__DIR__.'/../config/access.php', 'pin.access');
+        $this->app->bind('pin.access', Access::class);
+    }
+
+    /**
+     * 发布资源并注册权限校验。
      */
     public function boot(): void
     {
-        $this->mergeConfigFrom(__DIR__.'/../config/access.php', 'pin.access');
         $this->publishes([
             __DIR__.'/../config/access.php' => config_path('pin/access.php'),
         ], 'pin-access-config');
@@ -29,23 +37,33 @@ class AccessServiceProvider extends ServiceProvider
             'pin-access-migrations'
         );
 
-        $this->app->bind('pin.access', Access::class);
+        Gate::before($this->authorizeAccess(...));
+    }
 
-        Gate::before(
-            function (Authenticatable $user, string $ability, array $parameters) {
-                if ($ability !== Access::ABILITY || ! $user instanceof AccessUser) {
-                    return null;
-                }
+    /**
+     * 仅处理 access 能力，其他能力继续使用应用自身的 Gate 定义。
+     *
+     * @param  array<int, mixed>  $arguments
+     */
+    protected function authorizeAccess(Authenticatable $user, string $ability, array $arguments): ?bool
+    {
+        if ($ability !== Access::ABILITY || ! $user instanceof AccessUser) {
+            return null;
+        }
 
-                /** @var AccessUser $user */
-                if ($user->hasAllAccess()) {
-                    return true;
-                }
+        if ($user->hasAllAccess()) {
+            return true;
+        }
 
-                return in_array(
-                    $parameters[0],
-                    Facades\Access::forUser($user)->codes()
-                );
-            });
+        $code = $arguments[0] ?? null;
+
+        if (! is_string($code) || $code === '') {
+            return false;
+        }
+
+        // Gate::forUser() 可校验未登录的指定用户，不能依赖当前认证用户的门面实例。
+        $access = $this->app->make('pin.access', ['user' => $user]);
+
+        return in_array($code, $access->codes(), true);
     }
 }

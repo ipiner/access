@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use Illuminate\Support\Collection;
+use Illuminate\Contracts\Cache\Repository;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Gate;
 use Pin\Access\Access;
@@ -36,7 +36,6 @@ it('allows user with full access', function () {
 it('allows user with matching access code', function () {
     $menu = MenuFactory::new()->create();
     $user = accessUser(null, [$menu]);
-    $this->actingAs($user);
     expect(
         Gate::forUser($user)->allows(Access::ABILITY, $menu->code)
     )->toBeTrue();
@@ -57,9 +56,10 @@ it('resolves access data', function () {
     $menus = $access->menus();
 
     // cache
-    expect(Cache::get('auth-access:'.$user->id))->toHaveKeys(['menus', 'codes']);
+    $cacheKey = $this->invoker(AccessProvider::class)->cacheKey($user);
+    expect(Cache::get($cacheKey))->toHaveKeys(['menus', 'codes']);
     AccessProvider::flushAccess($user);
-    expect(Cache::get('auth-access:'.$user->id))->toBeNull()
+    expect(Cache::get($cacheKey))->toBeNull()
         ->and($codes)->toBe([
             $menu->code,
             $button->code,
@@ -74,24 +74,53 @@ it('resolves access data', function () {
     expect($access->codes())->toBe([]);
 });
 
-function accessUser(?string $username = null, array $menus = []): User
+it('denies missing or invalid access codes', function (array $arguments) {
+    expect(Gate::forUser(accessUser())->allows(Access::ABILITY, $arguments))->toBeFalse();
+})->with([
+    'missing' => [[]],
+    'null' => [[null]],
+    'integer' => [[123]],
+    'empty' => [['']],
+]);
+
+it('compares access codes strictly', function () {
+    $user = accessUser(menus: [new Menu(['id' => 1, 'code' => '01', 'type' => Menu::BUTTON])]);
+
+    expect(Gate::forUser($user)->allows(Access::ABILITY, '1'))->toBeFalse()
+        ->and(Gate::forUser($user)->allows(Access::ABILITY, '01'))->toBeTrue();
+});
+
+it('does not load menus when listing full access codes', function () {
+    $user = Mockery::mock(AccessUser::class);
+    $user->shouldReceive('hasAllAccess')->once()->andReturnTrue();
+    $user->shouldNotReceive('accessibleMenus');
+
+    expect((new Access($user))->codes())->toBe([]);
+});
+
+it('resolves custom provider dependencies through the container', function () {
+    config(['pin.access.access_provider' => InjectableAccessProvider::class]);
+    $user = accessUser();
+    $access = new Access($user);
+
+    expect($access->provider)->toBeInstanceOf(InjectableAccessProvider::class)
+        ->and($access->provider->user)->toBe($user)
+        ->and($access->provider->cache)->toBe(app('cache.store'));
+});
+
+it('reuses access for the same user and creates it for another user', function () {
+    $user = accessUser();
+    $otherUser = accessUser();
+    $access = new Access($user);
+
+    expect($access->forUser($user))->toBe($access)
+        ->and($access->forUser($otherUser)->provider->user)->toBe($otherUser);
+});
+
+class InjectableAccessProvider extends AccessProvider
 {
-    $user = new class(['id' => crc32(uniqid()), 'username' => $username ?? uniqid()]) extends User implements AccessUser
+    public function __construct(AccessUser $user, public Repository $cache)
     {
-        public Collection $menus;
-
-        public function hasAllAccess(): bool
-        {
-            return $this->username === 'admin';
-        }
-
-        public function accessibleMenus(): Collection
-        {
-            return $this->menus ?? collect();
-        }
-    };
-
-    $user->menus = collect($menus);
-
-    return $user;
+        parent::__construct($user);
+    }
 }

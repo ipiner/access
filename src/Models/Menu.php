@@ -40,6 +40,19 @@ class Menu extends TreeModel implements AccessibleMenu
     public const string BUTTON = 'button';
 
     /**
+     * 统一数据库驱动和手动赋值的状态类型。
+     *
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            ...parent::casts(),
+            'enabled' => 'integer',
+        ];
+    }
+
+    /**
      * 是否禁用
      */
     public function isDisabled(): bool
@@ -52,6 +65,6 @@ class Menu extends TreeModel implements AccessibleMenu
      */
     public function isMenu(): bool
     {
-        return $this->type == static::MENU;
+        return $this->type === static::MENU;
     }
 }
